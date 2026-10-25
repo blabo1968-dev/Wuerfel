@@ -1,149 +1,961 @@
-<!DOCTYPE html><html lang="de"><head>
-
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Digitaler Würfel - Blankenhagen Spiele</title>
+    <title>Blankenhagen Spieleentwicklung | 3D Würfel Simulator</title>
+    <title>Blankenhagen Spieleentwicklung | 3D Würfel Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        glass: 'rgba(255, 255, 255, 0.05)',
+                        glassBorder: 'rgba(255, 255, 255, 0.12)',
+                        neonAccent: '#6366f1',
+                        neonGlow: '#818cf8',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Font: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Three.js (3D Render Engine) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Cannon.js (3D Physics Engine) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
 
     <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #0f172a 60%, #020617 100%);
+            color: #f8fafc;
+            overflow-x: hidden;
+            user-select: none;
+        }
 
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #ffffff; display: flex; flex-direction: column; justify-content: center; height: 100vh; margin: 0; color: #333; overflow: hidden; }
-
-        .header { position: absolute; top: 20px; width: 100%; }
-
-        h1 { font-size: 20px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
-
-        .subline { font-size: 14px; color: #777; margin-top: 0; }
-
-        
-
-        #dice-container { margin: 40px auto; position: relative; width: 180px; height: 180px; }
-
-        #dice { font-size: 80px; font-weight: bold; background: #fdfdfd; width: 100%; height: 100%; border: 4px solid #333; border-radius: 30px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.1s; user-select: none; -webkit-tap-highlight-color: transparent; }
-
-        #dice:active { transform: scale(0.9); }
-
-        
-
-        .btn-roll { padding: 15px 35px; font-size: 20px; font-weight: bold; background: #333; color: white; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: background 0.3s; margin-top: 10px; }
-
-        
-
-        .feedback-area { margin-top: 20px; height: 40px; }
-
-        #message { font-weight: bold; color: #444; font-size: 1.1rem; }
-
-        
-
-        .footer { position: absolute; bottom: 20px; width: 100%; font-size: 11px; color: #aaa; line-height: 1.4; }
-
-        
-
-        .shake { animation: shake 0.3s linear; }
+        /* Screen shake animation effect */
+        .shake-effect {
+            animation: shake 0.25s cubic-bezier(.36,.07,.19,.97) both;
+        }
 
         @keyframes shake {
-
-            0% { transform: rotate(0deg); }
-
-            25% { transform: rotate(10deg); }
-
-            50% { transform: rotate(-10deg); }
-
-            75% { transform: rotate(10deg); }
-
-            100% { transform: rotate(0deg); }
-
+            10%, 90% { transform: translate3d(-1px, -1px, 0); }
+            20%, 80% { transform: translate3d(2px, 2px, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, -2px, 0); }
+            40%, 60% { transform: translate3d(4px, 2px, 0); }
         }
 
-    </style></head><body>
+        /* Glassmorphism Styles */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+        }
 
+        .glass-button {
+            background: rgba(99, 102, 241, 0.25);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(129, 140, 248, 0.4);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
+        .glass-button:hover {
+            background: rgba(99, 102, 241, 0.45);
+            border-color: rgba(165, 180, 252, 0.7);
+            box-shadow: 0 0 25px rgba(99, 102, 241, 0.5);
+            transform: translateY(-2px);
+        }
 
-    <div class="header">
+        .glass-button:active {
+            transform: translateY(1px);
+        }
 
-        <h1>Blankenhagen</h1>
+        /* Canvas styling */
+        #webgl-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            cursor: grab;
+        }
 
-        <p class="subline">Spieleentwicklung für das Land</p>
+        #webgl-container:active {
+            cursor: grabbing;
+        }
 
-    </div>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7);
+        }
 
+        /* Animations */
+        @keyframes pop {
+            0% { transform: scale(0.85); opacity: 0; }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); opacity: 1; }
+        }
 
+        .animate-pop {
+            animation: pop 0.35s ease-out forwards;
+        }
 
-    <div id="dice-container">
+        @keyframes shine {
+            0% { background-position: -200%; }
+            100% { background-position: 200%; }
+        }
 
-        <div id="dice" onclick="roll()">?</div>
+        .brand-text-glow {
+            background: linear-gradient(90deg, #e0e7ff 0%, #a5b4fc 25%, #ffffff 50%, #a5b4fc 75%, #e0e7ff 100%);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            animation: shine 4s linear infinite;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between overflow-hidden relative">
 
-    </div>
+    <!-- 3D Canvas Background -->
+    <div id="webgl-container"></div>
 
+    <!-- Header Overlay with Branding -->
+    <header class="relative z-10 w-full p-4 md:p-6 flex justify-between items-center max-w-7xl mx-auto pointer-events-none">
+        
+        <!-- Brand Logo Badge -->
+        <div class="pointer-events-auto flex items-center gap-3.5 glass-panel px-5 py-2.5 rounded-2xl border border-indigo-500/30">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/40 relative overflow-hidden group">
+                <i class="fa-solid fa-gamepad text-xl z-10"></i>
+                <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+            </div>
+            <div>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-black tracking-widest uppercase text-amber-400">BLANKENHAGEN</span>
+                    <span class="text-[9px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.5 rounded border border-amber-500/30">STUDIO</span>
+                </div>
+                <h1 class="font-extrabold text-sm md:text-base tracking-tight text-white leading-tight brand-text-glow">
+                    Spieleentwicklung
+                </h1>
+            </div>
+        </div>
 
+        <!-- Controls (Sound & Info) -->
+        <div class="pointer-events-auto flex items-center gap-3">
+            <button id="sound-toggle" title="Ton umschalten" class="glass-panel w-11 h-11 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:border-indigo-500/50 transition shadow-lg">
+                <i class="fa-solid fa-volume-high text-lg" id="sound-icon"></i>
+            </button>
+            <button id="info-toggle" title="Info" class="glass-panel w-11 h-11 rounded-2xl flex items-center justify-center text-slate-300 hover:text-white hover:border-indigo-500/50 transition shadow-lg">
+                <i class="fa-solid fa-circle-info text-lg"></i>
+            </button>
+        </div>
+    </header>
 
-    <div>
-
-        <button class="btn-roll" onclick="roll()">WÜRFELN</button>
-
-    </div>
-
-
-
-    <div class="feedback-area">
-
-        <p id="message">Bereit?</p>
-
-    </div>
-
-
-
-    <div class="footer">
-
-        © 2026 Blankenhagen Spiele | „Der Letzte zahlt“<br>
-
-        Dieser Text wurde unter Zuhilfenahme einer Künstlichen Intelligenz erstellt und von einem Menschen überprüft.
-
-    </div>
-
-
-
-    <script>
-
-        function roll() {
-
-            const dice = document.getElementById('dice');
-
-            const message = document.getElementById('message');
-
+    <!-- Main Controls Overlay -->
+    <main class="relative z-10 w-full max-w-7xl mx-auto px-4 pb-2 md:pb-4 flex flex-col md:flex-row gap-5 items-end justify-between pointer-events-none">
+        
+        <!-- Left Side: Result Display and History -->
+        <div class="w-full md:w-80 flex flex-col gap-3.5 pointer-events-auto">
             
-
-            dice.classList.add('shake');
-
-            dice.innerText = "...";
-
-            message.innerText = "Würfel rollt...";
-
-
-
-            setTimeout(() => {
-
-                const zahl = Math.floor(Math.random() * 6) + 1;
-
-                dice.innerText = zahl;
-
-                dice.classList.remove('shake');
-
+            <!-- Result Summary Box -->
+            <div class="glass-panel rounded-3xl p-5 border border-white/10 backdrop-blur-xl">
+                <div class="flex justify-between items-center mb-1.5">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-indigo-300">Gesamtsumme</span>
+                    <span id="dice-count-label" class="text-xs bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-full border border-indigo-500/30">1 Würfel</span>
+                </div>
                 
+                <div class="flex items-baseline gap-3 my-1">
+                    <span id="total-sum" class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-200 tracking-tight">--</span>
+                    <span id="individual-results" class="text-sm font-medium text-slate-400">(-)</span>
+                </div>
 
-                if(zahl === 6) {
+                <p id="status-text" class="text-xs text-slate-400 mt-2 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Tippe irgendwohin oder nutze "Würfeln".
+                </p>
+            </div>
 
-                    message.innerText = "EINE SECHS! Dein Zug!";
+            <!-- Roll History Log -->
+            <div class="glass-panel rounded-3xl p-4 border border-white/10 backdrop-blur-xl">
+                <div class="flex justify-between items-center mb-2.5">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> Verlauf
+                    </h3>
+                    <button id="clear-history" class="text-[11px] text-slate-400 hover:text-rose-400 transition">Löschen</button>
+                </div>
+                
+                <div id="history-container" class="flex flex-col gap-2 max-h-28 overflow-y-auto pr-1 text-sm">
+                    <div class="text-xs text-slate-500 italic text-center py-2">Bisher noch keine Würfe.</div>
+                </div>
+            </div>
+        </div>
 
-                } else {
+        <!-- Right / Center Bottom: Configuration & Throw Action -->
+        <div class="w-full md:w-auto flex flex-col sm:flex-row items-center gap-4 pointer-events-auto">
+            
+            <!-- Dice Settings Control Panel -->
+            <div class="glass-panel rounded-3xl p-3 px-4 flex items-center gap-4 border border-white/10 w-full sm:w-auto justify-around sm:justify-start">
+                
+                <!-- Dice Count Selector -->
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Anzahl</label>
+                    <div class="flex bg-slate-900/60 p-1 rounded-xl border border-white/5">
+                        <button data-count="1" class="dice-btn active bg-indigo-600 text-white w-8 h-8 rounded-lg font-bold text-sm transition">1</button>
+                        <button data-count="2" class="dice-btn text-slate-400 hover:text-white w-8 h-8 rounded-lg font-bold text-sm transition">2</button>
+                        <button data-count="3" class="dice-btn text-slate-400 hover:text-white w-8 h-8 rounded-lg font-bold text-sm transition">3</button>
+                        <button data-count="4" class="dice-btn text-slate-400 hover:text-white w-8 h-8 rounded-lg font-bold text-sm transition">4</button>
+                    </div>
+                </div>
 
-                    message.innerText = "Du hast eine " + zahl + " gewürfelt.";
+                <div class="h-8 w-px bg-white/10"></div>
 
+                <!-- Dice Style Selector -->
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Design</label>
+                    <div class="flex gap-1.5 p-1">
+                        <button data-theme="red" title="Klassisch Rot" class="theme-btn w-6 h-6 rounded-full bg-red-600 ring-2 ring-white/50 hover:scale-110 transition"></button>
+                        <button data-theme="white" title="Klassisch Weiß" class="theme-btn w-6 h-6 rounded-full bg-slate-100 hover:scale-110 transition"></button>
+                        <button data-theme="cyber" title="Cyber Neon" class="theme-btn w-6 h-6 rounded-full bg-cyan-500 hover:scale-110 transition shadow-sm shadow-cyan-400/50"></button>
+                        <button data-theme="gold" title="Königs-Gold" class="theme-btn w-6 h-6 rounded-full bg-amber-500 hover:scale-110 transition"></button>
+                        <button data-theme="wood" title="Edelholz" class="theme-btn w-6 h-6 rounded-full bg-amber-900 hover:scale-110 transition border border-amber-700"></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Throw Button -->
+            <button id="roll-button" class="glass-button w-full sm:w-auto px-8 py-4 rounded-3xl flex items-center justify-center gap-3 text-white font-bold text-lg shadow-xl shadow-indigo-600/30">
+                <i class="fa-solid fa-dice text-2xl animate-bounce"></i>
+                <span>Würfeln</span>
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer Branding & Mandatory AI Disclaimer -->
+    <footer class="relative z-10 text-center py-2 px-4 text-[10px] md:text-[11px] text-slate-400 pointer-events-none flex flex-col gap-0.5">
+        <div>
+            <span class="opacity-75">Powered by</span> <strong class="text-indigo-300 font-semibold">Blankenhagen Spieleentwicklung</strong>
+        </div>
+        <div class="text-[9px] md:text-[10px] text-slate-400/80 italic">
+            Dieser Text/Dieses Bild/Dieses Video/… wurde unter Zuhilfenahme einer Künstlichen Intelligenz erstellt und von einem Menschen überprüft.
+        </div>
+    </footer>
+
+    <!-- Modal Info Box -->
+    <div id="info-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-white/20 shadow-2xl relative">
+            <button id="close-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-amber-500 flex items-center justify-center text-white">
+                    <i class="fa-solid fa-gamepad text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-white leading-tight">Blankenhagen Spieleentwicklung</h3>
+                    <p class="text-xs text-indigo-300">3D Physikalismus-Engine</p>
+                </div>
+            </div>
+            <p class="text-slate-300 text-sm mb-4 leading-relaxed">
+                Willkommen beim interaktiven 3D-Würfel-Simulator. Diese Anwendung nutzt echte physikalische Simulationen mit begrenzten Sichtfeld-Grenzen.
+            </p>
+            <ul class="text-slate-300 text-xs space-y-2 mb-6 list-disc list-inside">
+                <li><strong>Immer im Blickfeld:</strong> Die Würfel bleiben während des gesamten Wurfes und im Ruhemodus perfekt im Kamerabereich sichtbar.</li>
+                <li><strong>Effekte:</strong> Boden-Schockwellen, Glüh-Partikel (Glow Trails), haptische Hand-Vibration & dynamische Sound-Kulisse.</li>
+                <li><strong>Bedienung:</strong> Klicke auf den Bildschirm oder den Button zum Würfeln.</li>
+            </ul>
+            <button id="modal-ok" class="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold rounded-xl transition shadow-lg shadow-indigo-500/30">
+                Los geht's
+            </button>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        /**
+         * 3D Dice Simulator Engine
+         * Developed for Blankenhagen Spieleentwicklung
+         */
+
+        // Audio Effects Synthesizer (Web Audio API)
+        class AudioController {
+            constructor() {
+                this.enabled = true;
+                this.audioCtx = null;
+            }
+
+            init() {
+                if (!this.audioCtx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.audioCtx = new AudioContext();
+                }
+            }
+
+            playDiceClack(intensity = 1) {
+                if (!this.enabled) return;
+                this.init();
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
                 }
 
-            }, 500);
+                const bufferSize = this.audioCtx.sampleRate * 0.04;
+                const buffer = this.audioCtx.createBuffer(1, bufferSize, this.audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
 
+                const noise = this.audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.audioCtx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1000 + Math.random() * 800;
+                filter.Q.value = 4;
+
+                const gain = this.audioCtx.createGain();
+                const volume = Math.min(Math.max(intensity, 0.05), 1.0) * 0.4;
+                gain.gain.setValueAtTime(volume, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.04);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.audioCtx.destination);
+
+                noise.start();
+            }
         }
 
-    </script></body></html>
+        const audio = new AudioController();
+
+        // Extended Color Themes
+        const THEMES = {
+            red: { base: 0xdc2626, pip: 0xffffff, metallic: 0.1, roughness: 0.3, glow: 0xef4444 },
+            white: { base: 0xf8fafc, pip: 0x0f172a, metallic: 0.0, roughness: 0.4, glow: 0x818cf8 },
+            cyber: { base: 0x090d16, pip: 0x06b6d4, metallic: 0.8, roughness: 0.2, glow: 0x06b6d4 },
+            gold: { base: 0xf59e0b, pip: 0x451a03, metallic: 0.7, roughness: 0.2, glow: 0xfbbf24 },
+            wood: { base: 0x78350f, pip: 0xfef3c7, metallic: 0.0, roughness: 0.7, glow: 0xd97706 }
+        };
+
+        let currentTheme = 'red';
+
+        // Core 3D Variables
+        let scene, camera, renderer;
+        let world;
+        let diceList = [];
+        let diceCount = 1;
+        let isRolling = false;
+        let floorBody;
+        let idleTime = 0;
+
+        // Visual Effects Arrays
+        let shockwaves = [];
+        let particles = [];
+        let cameraShake = 0;
+
+        // UI References
+        const totalSumEl = document.getElementById('total-sum');
+        const individualResultsEl = document.getElementById('individual-results');
+        const statusTextEl = document.getElementById('status-text');
+        const historyContainer = document.getElementById('history-container');
+        const rollBtn = document.getElementById('roll-button');
+        const diceCountBtns = document.querySelectorAll('.dice-btn');
+        const themeBtns = document.querySelectorAll('.theme-btn');
+        const soundToggleBtn = document.getElementById('sound-toggle');
+        const soundIcon = document.getElementById('sound-icon');
+
+        // Face Mapping Directions
+        const FACE_DIRECTIONS = [
+            { number: 1, vector: new THREE.Vector3(0, 0, 1) },
+            { number: 6, vector: new THREE.Vector3(0, 0, -1) },
+            { number: 2, vector: new THREE.Vector3(1, 0, 0) },
+            { number: 5, vector: new THREE.Vector3(-1, 0, 0) },
+            { number: 3, vector: new THREE.Vector3(0, 1, 0) },
+            { number: 4, vector: new THREE.Vector3(0, -1, 0) }
+        ];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initThreeAndCannon();
+            createEnvironment();
+            updateDiceCount(1);
+            setupEventListeners();
+            animate();
+        });
+
+        function initThreeAndCannon() {
+            const container = document.getElementById('webgl-container');
+
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.025);
+
+            // Framed Camera position to guarantee full view of centered play area
+            const aspect = window.innerWidth / window.innerHeight;
+            const fov = aspect < 1 ? 55 : 42; // Dynamic FOV for Mobile vs Desktop
+            camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 100);
+            camera.position.set(0, 12.5, 9.5);
+            camera.lookAt(0, 0.5, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Physics World Setup
+            world = new CANNON.World();
+            world.gravity.set(0, -28, 0);
+            world.broadphase = new CANNON.NaiveBroadphase();
+            world.solver.iterations = 12;
+
+            const diceMaterial = new CANNON.Material("dice");
+            const floorMaterial = new CANNON.Material("floor");
+            const contactMaterial = new CANNON.ContactMaterial(floorMaterial, diceMaterial, {
+                friction: 0.35,
+                restitution: 0.45
+            });
+            world.addContactMaterial(contactMaterial);
+
+            // Audio & Impact Haptics Event Trigger
+            world.addEventListener("postStep", () => {
+                diceList.forEach(dice => {
+                    if (dice.body) {
+                        const speed = dice.body.velocity.norm();
+                        
+                        // Check floor collisions
+                        if (dice.body.position.y < 1.1 && speed > 1.2 && dice.canPlaySound) {
+                            audio.playDiceClack(speed / 8);
+                            
+                            // Trigger Shockwave Visual & Camera Shake
+                            createShockwave(dice.body.position.x, dice.body.position.z);
+                            cameraShake = Math.min(cameraShake + speed * 0.015, 0.25);
+                            
+                            // Mobile Haptic Feedback
+                            if (navigator.vibrate) {
+                                try { navigator.vibrate(Math.min(speed * 4, 30)); } catch(e){}
+                            }
+
+                            dice.canPlaySound = false;
+                            setTimeout(() => { dice.canPlaySound = true; }, 100);
+                        }
+                    }
+                });
+            });
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createEnvironment() {
+            // Lighting Setup
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            dirLight.position.set(10, 22, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 40;
+            dirLight.shadow.camera.left = -10;
+            dirLight.shadow.camera.right = 10;
+            dirLight.shadow.camera.top = 10;
+            dirLight.shadow.camera.bottom = -10;
+            scene.add(dirLight);
+
+            const pointLight = new THREE.PointLight(0x6366f1, 1.5, 25);
+            pointLight.position.set(-5, 6, -5);
+            scene.add(pointLight);
+
+            // Ground Floor (Physics)
+            const floorShape = new CANNON.Plane();
+            floorBody = new CANNON.Body({ mass: 0 });
+            floorBody.addShape(floorShape);
+            floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+            world.addBody(floorBody);
+
+            // Tight Invisible Bounding Walls & Ceiling to keep dice inside camera frame
+            const wallShape = new CANNON.Plane();
+            const wallDistanceX = 3.6; // Keep dice horizontally centered
+            const wallDistanceZ = 3.2; // Keep dice vertically centered
+            
+            // Side Walls
+            [
+                { pos: [0, 0, -wallDistanceZ], rot: [0, 0] },
+                { pos: [0, 0, wallDistanceZ], rot: [0, Math.PI] },
+                { pos: [-wallDistanceX, 0, 0], rot: [0, Math.PI / 2] },
+                { pos: [wallDistanceX, 0, 0], rot: [0, -Math.PI / 2] }
+            ].forEach(w => {
+                const wallBody = new CANNON.Body({ mass: 0 });
+                wallBody.addShape(wallShape);
+                wallBody.position.set(...w.pos);
+                wallBody.quaternion.setFromEuler(w.rot[0], w.rot[1], 0);
+                world.addBody(wallBody);
+            });
+
+            // Ceiling Boundary (keeps dice from bouncing off-screen vertically)
+            const ceilingBody = new CANNON.Body({ mass: 0 });
+            ceilingBody.addShape(wallShape);
+            ceilingBody.position.set(0, 5.5, 0);
+            ceilingBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
+            world.addBody(ceilingBody);
+
+            // Ground Shadow Mesh
+            const shadowGround = new THREE.Mesh(
+                new THREE.PlaneGeometry(30, 30),
+                new THREE.ShadowMaterial({ opacity: 0.3 })
+            );
+            shadowGround.rotation.x = -Math.PI / 2;
+            shadowGround.receiveShadow = true;
+            scene.add(shadowGround);
+        }
+
+        // Texture Generator for Dice Canvas Faces
+        function createDiceFaceTexture(number, themeKey) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            const theme = THEMES[themeKey];
+
+            // Base Fill
+            ctx.fillStyle = '#' + theme.base.toString(16).padStart(6, '0');
+            ctx.fillRect(0, 0, 256, 256);
+
+            // Bevel & Border Styling
+            ctx.lineWidth = 14;
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.strokeRect(0, 0, 256, 256);
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+            ctx.strokeRect(8, 8, 240, 240);
+
+            // Pip settings
+            ctx.fillStyle = '#' + theme.pip.toString(16).padStart(6, '0');
+            const r = 22;
+
+            const dots = {
+                1: [[128, 128]],
+                2: [[64, 64], [192, 192]],
+                3: [[64, 64], [128, 128], [192, 192]],
+                4: [[64, 64], [192, 64], [64, 192], [192, 192]],
+                5: [[64, 64], [192, 64], [128, 128], [64, 192], [192, 192]],
+                6: [[64, 64], [192, 64], [64, 128], [192, 128], [64, 192], [192, 192]]
+            };
+
+            // Render Pips
+            dots[number].forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Extra Glow for Cyber Theme
+                if (themeKey === 'cyber') {
+                    ctx.shadowColor = '#06b6d4';
+                    ctx.shadowBlur = 12;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            });
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createCubeMaterials(themeKey) {
+            const faceNumbers = [2, 5, 3, 4, 1, 6];
+            return faceNumbers.map(num => {
+                return new THREE.MeshStandardMaterial({
+                    map: createDiceFaceTexture(num, themeKey),
+                    roughness: THEMES[themeKey].roughness,
+                    metalness: THEMES[themeKey].metallic,
+                });
+            });
+        }
+
+        function spawnDie(x, y, z) {
+            const size = 1.4;
+            const geometry = new THREE.BoxGeometry(size, size, size, 2, 2, 2);
+            const materials = createCubeMaterials(currentTheme);
+
+            const mesh = new THREE.Mesh(geometry, materials);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            const shape = new CANNON.Box(new CANNON.Vec3(size / 2, size / 2, size / 2));
+            const body = new CANNON.Body({
+                mass: 1.2,
+                shape: shape,
+                linearDamping: 0.35,
+                angularDamping: 0.35
+            });
+
+            body.position.set(x, y, z);
+            world.addBody(body);
+
+            return {
+                mesh,
+                body,
+                initialX: x,
+                initialZ: z,
+                isSettled: true,
+                lastValue: null,
+                canPlaySound: true
+            };
+        }
+
+        // Effect: Ground Impact Shockwave Ring
+        function createShockwave(x, z) {
+            const geometry = new THREE.RingGeometry(0.1, 0.3, 32);
+            const material = new THREE.MeshBasicMaterial({
+                color: THEMES[currentTheme].glow,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.8
+            });
+            const ring = new THREE.Mesh(geometry, material);
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.set(x, 0.02, z);
+            scene.add(ring);
+
+            shockwaves.push({ mesh: ring, scale: 1, opacity: 0.8 });
+        }
+
+        // Effect: Dice Motion Sparkle Trail
+        function emitDiceParticle(x, y, z) {
+            const geometry = new THREE.SphereGeometry(0.06, 8, 8);
+            const material = new THREE.MeshBasicMaterial({
+                color: THEMES[currentTheme].glow,
+                transparent: true,
+                opacity: 0.9
+            });
+            const p = new THREE.Mesh(geometry, material);
+            p.position.set(
+                x + (Math.random() - 0.5) * 0.6,
+                y + (Math.random() - 0.5) * 0.6,
+                z + (Math.random() - 0.5) * 0.6
+            );
+            scene.add(p);
+            particles.push({ mesh: p, opacity: 0.9, life: 1.0 });
+        }
+
+        function clearDice() {
+            diceList.forEach(dice => {
+                scene.remove(dice.mesh);
+                world.remove(dice.body);
+            });
+            diceList = [];
+        }
+
+        function updateDiceCount(count) {
+            diceCount = count;
+            document.getElementById('dice-count-label').textContent = `${count} ${count === 1 ? 'Würfel' : 'Würfel'}`;
+            resetDicePositions();
+        }
+
+        function resetDicePositions() {
+            clearDice();
+            const spacing = 1.9;
+            const startX = -((diceCount - 1) * spacing) / 2;
+
+            for (let i = 0; i < diceCount; i++) {
+                // Place dice visibly centered on the table board on spawn
+                const dice = spawnDie(startX + i * spacing, 0.7, 0);
+                diceList.push(dice);
+            }
+            updateResultsDisplay();
+        }
+
+        function rollDice() {
+            if (isRolling) return;
+            isRolling = true;
+            statusTextEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Würfel rollen...`;
+
+            diceList.forEach((dice) => {
+                dice.isSettled = false;
+
+                // Lift dice up slightly within view bounds for throwing
+                const spawnY = 3.0 + Math.random() * 1.2;
+                const offsetX = (Math.random() - 0.5) * 1.8;
+                const offsetZ = (Math.random() - 0.5) * 1.8;
+                
+                dice.body.position.set(offsetX, spawnY, offsetZ);
+
+                // Controlled forces so dice tumble within camera view boundary
+                const forceX = (Math.random() - 0.5) * 8;
+                const forceZ = (Math.random() - 0.5) * 8;
+                const forceY = Math.random() * 4 + 4;
+                dice.body.velocity.set(forceX, forceY, forceZ);
+
+                dice.body.angularVelocity.set(
+                    (Math.random() - 0.5) * 28,
+                    (Math.random() - 0.5) * 28,
+                    (Math.random() - 0.5) * 28
+                );
+            });
+        }
+
+        function getDiceUpValue(dice) {
+            const matrix = new THREE.Matrix4();
+            matrix.extractRotation(dice.mesh.matrix);
+
+            let maxDot = -Infinity;
+            let highestFace = 1;
+
+            const worldUp = new THREE.Vector3(0, 1, 0);
+
+            FACE_DIRECTIONS.forEach(face => {
+                const normal = face.vector.clone().applyMatrix4(matrix);
+                const dot = normal.dot(worldUp);
+
+                if (dot > maxDot) {
+                    maxDot = dot;
+                    highestFace = face.number;
+                }
+            });
+
+            return highestFace;
+        }
+
+        function updateResultsDisplay() {
+            let total = 0;
+            const individual = [];
+            let allSettled = true;
+
+            diceList.forEach(dice => {
+                if (!dice.isSettled) {
+                    allSettled = false;
+                }
+                const val = getDiceUpValue(dice);
+                dice.lastValue = val;
+                individual.push(val);
+                total += val;
+            });
+
+            if (allSettled && isRolling) {
+                isRolling = false;
+                statusTextEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Ergebnis bereit`;
+                
+                totalSumEl.classList.remove('animate-pop');
+                void totalSumEl.offsetWidth;
+                totalSumEl.classList.add('animate-pop');
+
+                addHistoryEntry(total, individual);
+            }
+
+            if (isRolling) {
+                totalSumEl.textContent = "...";
+                individualResultsEl.textContent = "(-)";
+            } else {
+                totalSumEl.textContent = total;
+                individualResultsEl.textContent = individual.length > 1 ? `(${individual.join(' + ')})` : '';
+            }
+        }
+
+        function addHistoryEntry(total, individual) {
+            const placeholder = historyContainer.querySelector('.italic');
+            if (placeholder) placeholder.remove();
+
+            const entry = document.createElement('div');
+            entry.className = "flex justify-between items-center bg-slate-800/60 p-2 rounded-xl border border-white/5 animate-pop";
+            
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            entry.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="font-bold text-indigo-300 text-sm">${total}</span>
+                    <span class="text-xs text-slate-400">${individual.length > 1 ? '[' + individual.join(', ') + ']' : ''}</span>
+                </div>
+                <span class="text-[10px] text-slate-500">${time}</span>
+            `;
+
+            historyContainer.prepend(entry);
+
+            if (historyContainer.children.length > 8) {
+                historyContainer.lastElementChild.remove();
+            }
+        }
+
+        // Render Loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            world.step(1 / 60);
+            idleTime += 0.02;
+
+            // Update Dice Meshes & Motion Particles
+            diceList.forEach((dice, idx) => {
+                const speed = dice.body.velocity.norm();
+                const angularVel = dice.body.angularVelocity.norm();
+
+                // If dice are idle/resting, apply gentle hovering float animation so scene stays dynamic
+                if (!isRolling && speed < 0.1 && angularVel < 0.1) {
+                    dice.isSettled = true;
+
+                    // Subtle continuous rotation & floating animation when idle
+                    const hoverOffsetY = Math.sin(idleTime * 1.5 + idx * 0.8) * 0.06;
+                    dice.mesh.position.x = dice.body.position.x;
+                    dice.mesh.position.y = dice.body.position.y + hoverOffsetY;
+                    dice.mesh.position.z = dice.body.position.z;
+                    dice.mesh.quaternion.copy(dice.body.quaternion);
+
+                    // Micro rotation for subtle continuous motion
+                    dice.mesh.rotation.y += 0.003;
+                } else {
+                    dice.mesh.position.copy(dice.body.position);
+                    dice.mesh.quaternion.copy(dice.body.quaternion);
+
+                    // Spawn Trail Particles when moving fast in the air
+                    if (speed > 2.5 && dice.body.position.y > 0.8) {
+                        emitDiceParticle(dice.body.position.x, dice.body.position.y, dice.body.position.z);
+                    }
+
+                    if (speed < 0.1 && angularVel < 0.1) {
+                        dice.isSettled = true;
+                    } else {
+                        dice.isSettled = false;
+                    }
+                }
+            });
+
+            // Update Shockwaves
+            for (let i = shockwaves.length - 1; i >= 0; i--) {
+                const s = shockwaves[i];
+                s.scale += 0.18;
+                s.opacity -= 0.04;
+                s.mesh.scale.set(s.scale, s.scale, s.scale);
+                s.mesh.material.opacity = Math.max(s.opacity, 0);
+
+                if (s.opacity <= 0) {
+                    scene.remove(s.mesh);
+                    shockwaves.splice(i, 1);
+                }
+            }
+
+            // Update Motion Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life -= 0.05;
+                p.mesh.material.opacity = Math.max(p.life, 0);
+                p.mesh.position.y += 0.01;
+
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+
+            // Apply Camera Shake Effect
+            if (cameraShake > 0) {
+                camera.position.x = (Math.random() - 0.5) * cameraShake;
+                camera.position.y = 12.5 + (Math.random() - 0.5) * cameraShake;
+                cameraShake *= 0.85;
+                if (cameraShake < 0.001) cameraShake = 0;
+            } else {
+                camera.position.set(0, 12.5, 9.5);
+            }
+            camera.lookAt(0, 0.5, 0);
+
+            if (isRolling) {
+                updateResultsDisplay();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.fov = aspect < 1 ? 55 : 42;
+            camera.aspect = aspect;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function setupEventListeners() {
+            rollBtn.addEventListener('click', rollDice);
+
+            const container = document.getElementById('webgl-container');
+            container.addEventListener('click', () => {
+                rollDice();
+            });
+
+            diceCountBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    diceCountBtns.forEach(b => {
+                        b.classList.remove('bg-indigo-600', 'text-white');
+                        b.classList.add('text-slate-400');
+                    });
+                    btn.classList.add('bg-indigo-600', 'text-white');
+                    btn.classList.remove('text-slate-400');
+
+                    const count = parseInt(btn.dataset.count);
+                    updateDiceCount(count);
+                });
+            });
+
+            themeBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    themeBtns.forEach(b => b.classList.remove('ring-2', 'ring-white/50'));
+                    btn.classList.add('ring-2', 'ring-white/50');
+                    currentTheme = btn.dataset.theme;
+                    resetDicePositions();
+                });
+            });
+
+            soundToggleBtn.addEventListener('click', () => {
+                audio.enabled = !audio.enabled;
+                if (audio.enabled) {
+                    soundIcon.className = 'fa-solid fa-volume-high text-lg';
+                    soundToggleBtn.classList.remove('opacity-50');
+                } else {
+                    soundIcon.className = 'fa-solid fa-volume-xmark text-lg';
+                    soundToggleBtn.classList.add('opacity-50');
+                }
+            });
+
+            document.getElementById('clear-history').addEventListener('click', () => {
+                historyContainer.innerHTML = '<div class="text-xs text-slate-500 italic text-center py-2">Bisher noch keine Würfe.</div>';
+            });
+
+            const modal = document.getElementById('info-modal');
+            const infoBtn = document.getElementById('info-toggle');
+            const closeModal = document.getElementById('close-modal');
+            const modalOk = document.getElementById('modal-ok');
+
+            const toggleModal = (show) => {
+                if (show) {
+                    modal.classList.remove('opacity-0', 'pointer-events-none');
+                } else {
+                    modal.classList.add('opacity-0', 'pointer-events-none');
+                }
+            };
+
+            infoBtn.addEventListener('click', () => toggleModal(true));
+            closeModal.addEventListener('click', () => toggleModal(false));
+            modalOk.addEventListener('click', () => toggleModal(false));
+        }
+    </script>
+</body>
+</html>
